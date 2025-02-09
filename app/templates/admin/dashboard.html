@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Family & Samaj Data</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+    <script>
+        // Check authentication on page load
+        window.onload = function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/api/v1/auth/login';
+                return;
+            }
+            // Set up AJAX headers
+            $.ajaxSetup({
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+                }
+            });
+            document.getElementById('username').textContent = localStorage.getItem('username') || 'Admin';
+            initializeDashboard();
+        }
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Family & Samaj Data</a>
+            <div class="d-flex">
+                <span class="navbar-text me-3" id="username"></span>
+                <button class="btn btn-outline-light" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <ul class="nav nav-tabs" id="dataTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="samaj-tab" data-bs-toggle="tab" href="#samaj" role="tab">Samaj View</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="family-tab" data-bs-toggle="tab" href="#family" role="tab">Family View</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="members-tab" data-bs-toggle="tab" href="#members" role="tab">Members View</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tab-content">
+            <!-- Samaj View -->
+            <div class="tab-pane fade show active" id="samaj" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <table id="samajTable" class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Samaj Name</th>
+                                    <th>Total Families</th>
+                                    <th>Total Members</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Family View -->
+            <div class="tab-pane fade" id="family" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <table id="familyTable" class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Family Name</th>
+                                    <th>Samaj</th>
+                                    <th>Head of Family</th>
+                                    <th>Total Members</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Members View -->
+            <div class="tab-pane fade" id="members" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Members</h5>
+                        <button class="btn btn-primary" onclick="showFilterModal()">Filter Data</button>
+                    </div>
+                    <div class="card-body">
+                        <table id="memberTable" class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Samaj</th>
+                                    <th>Family</th>
+                                    <th>Role</th>
+                                    <th>Age</th>
+                                    <th>Blood Group</th>
+                                    <th>Mobile</th>
+                                    <th>City</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Member Details Modal -->
+    <div class="modal fade" id="memberModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Member Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="memberDetails">
+                    <!-- Member details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div class="modal fade" id="filterModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Members</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="filterForm">
+                        <div class="mb-3">
+                            <label class="form-label">Samaj</label>
+                            <select class="form-select" id="samajFilter"></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Blood Group</label>
+                            <select class="form-select" id="bloodGroupFilter">
+                                <option value="">All</option>
+                                <option>A+</option>
+                                <option>A-</option>
+                                <option>B+</option>
+                                <option>B-</option>
+                                <option>AB+</option>
+                                <option>AB-</option>
+                                <option>O+</option>
+                                <option>O-</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Age Range</label>
+                            <div class="row">
+                                <div class="col">
+                                    <input type="number" class="form-control" id="ageMin" placeholder="Min">
+                                </div>
+                                <div class="col">
+                                    <input type="number" class="form-control" id="ageMax" placeholder="Max">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+    
+    <script>
+        const token = localStorage.getItem('token');
+        const username = localStorage.getItem('username');
+        
+        if (!token) {
+            window.location.href = '/api/v1/auth/login';
+        }
+        
+        document.getElementById('username').textContent = username || 'Admin';
+        
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+        
+        // Initialize DataTables
+        const samajTable = $('#samajTable').DataTable({
+            ajax: {
+                url: '/api/v1/admin/samaj',
+                headers: headers,
+                dataSrc: ''
+            },
+            columns: [
+                { data: 'name' },
+                { data: 'family_count' },
+                { data: 'member_count' },
+                {
+                    data: null,
+                    render: function(data) {
+                        return `<button class="btn btn-sm btn-info" onclick="viewSamajDetails(${data.id})">View</button>`;
+                    }
+                }
+            ]
+        });
+        
+        const familyTable = $('#familyTable').DataTable({
+            ajax: {
+                url: '/api/v1/admin/families/summary',
+                headers: headers,
+                dataSrc: ''
+            },
+            columns: [
+                { data: 'name' },
+                { data: 'samaj' },
+                { data: 'head_name' },
+                { data: 'member_count' },
+                {
+                    data: null,
+                    render: function(data) {
+                        return `<button class="btn btn-sm btn-info" onclick="viewFamilyMembers(${data.id})">View Members</button>`;
+                    }
+                }
+            ]
+        });
+        
+        const membersTable = $('#memberTable').DataTable({
+            ajax: {
+                url: '/api/v1/admin/members',
+                headers: headers,
+                dataSrc: ''
+            },
+            columns: [
+                { data: 'name' },
+                { data: 'samaj' },
+                { data: 'family' },
+                { data: 'role' },
+                { data: 'age' },
+                { data: 'blood_group' },
+                { data: 'mobile' },
+                { data: 'city' },
+                {
+                    data: null,
+                    render: function(data) {
+                        return `<button class="btn btn-sm btn-info" onclick="viewDetails(${data.id})">View</button>`;
+                    }
+                }
+            ],
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'csv',
+                    text: 'Export CSV',
+                    className: 'btn btn-primary',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7]
+                    }
+                }
+            ]
+        });
+        
+        // Handle tab changes
+        $('#dataTabs a').on('shown.bs.tab', function (e) {
+            const table = $($(e.target).attr('href')).find('table').DataTable();
+            table.columns.adjust().draw();
+        });
+        
+        async function loadSamajFilter() {
+            try {
+                const response = await fetch('/api/v1/admin/samaj', { headers });
+                const data = await response.json();
+                const select = document.getElementById('samajFilter');
+                select.innerHTML = '<option value="">All</option>';
+                data.forEach(samaj => {
+                    select.innerHTML += `<option value="${samaj.name}">${samaj.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading Samaj filter:', error);
+            }
+        }
+        
+        function showFilterModal() {
+            loadSamajFilter();
+            new bootstrap.Modal(document.getElementById('filterModal')).show();
+        }
+        
+        function applyFilters() {
+            const filters = {
+                samaj_name: document.getElementById('samajFilter').value,
+                blood_group: document.getElementById('bloodGroupFilter').value,
+                age_min: document.getElementById('ageMin').value,
+                age_max: document.getElementById('ageMax').value
+            };
+            
+            const queryParams = new URLSearchParams();
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value) queryParams.append(key, value);
+            });
+            
+            membersTable.ajax.url(`/api/v1/admin/members?${queryParams.toString()}`).load();
+            bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
+        }
+        
+        async function viewDetails(id) {
+            try {
+                const response = await fetch(`/api/v1/admin/members/${id}`, { headers });
+                const member = await response.json();
+                
+                const detailsHtml = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Name:</strong> ${member.name}</p>
+                            <p><strong>Samaj:</strong> ${member.samaj}</p>
+                            <p><strong>Family:</strong> ${member.family}</p>
+                            <p><strong>Role:</strong> ${member.role}</p>
+                            <p><strong>Age:</strong> ${member.age}</p>
+                            <p><strong>Blood Group:</strong> ${member.blood_group}</p>
+                            <p><strong>Mobile:</strong> ${member.mobile}</p>
+                            <p><strong>Email:</strong> ${member.email}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Education:</strong> ${member.education}</p>
+                            <p><strong>Occupation:</strong> ${member.occupation}</p>
+                            <p><strong>Current City:</strong> ${member.city}</p>
+                            <p><strong>Native Place:</strong> ${member.native_place}</p>
+                            <p><strong>Languages:</strong> ${member.languages_known}</p>
+                            <p><strong>Skills:</strong> ${member.skills}</p>
+                            <p><strong>Hobbies:</strong> ${member.hobbies}</p>
+                        </div>
+                    </div>
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('memberModal'));
+                document.getElementById('memberDetails').innerHTML = detailsHtml;
+                modal.show();
+            } catch (error) {
+                console.error('Error loading member details:', error);
+            }
+        }
+        
+        async function viewFamilyMembers(familyId) {
+            try {
+                const response = await fetch(`/api/v1/admin/families/${familyId}/members`, { headers });
+                const members = await response.json();
+                membersTable.clear().rows.add(members).draw();
+                document.getElementById('members-tab').click();
+            } catch (error) {
+                console.error('Error loading family members:', error);
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/api/v1/auth/login';
+        }
+        
+        loadSamajFilter();
+    </script>
+</body>
+</html>
+    
+    <script>
+        const token = localStorage.getItem('token');
+        const username = localStorage.getItem('username');
+        
+        if (!token) {
+            window.location.href = '/api/v1/auth/login';
+        }
+        
+        document.getElementById('username').textContent = username || 'Admin';
+        
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+        
+        const membersTable = $('#memberTable').DataTable({
+            ajax: {
+                url: '/api/v1/admin/members',
+                headers: headers,
+                dataSrc: ''
+            },
+            columns: [
+                { data: 'name' },
+                { data: 'samaj' },
+                { data: 'family' },
+                { data: 'role' },
+                { data: 'age' },
+                { data: 'blood_group' },
+                { data: 'mobile' },
+                { data: 'city' },
+                {
+                    data: null,
+                    render: function(data) {
+                        return `<button class="btn btn-sm btn-info" onclick="viewDetails(${data.id})">View</button>`;
+                    }
+                }
+            ],
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'csv',
+                    text: 'Export CSV',
+                    className: 'btn btn-primary',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7]
+                    }
+                }
+            ]
+        });
+        
+        async function loadSamajFilter() {
+            try {
+                const response = await fetch('/api/v1/admin/samaj', { headers });
+                const data = await response.json();
+                const select = document.getElementById('samajFilter');
+                select.innerHTML = '<option value="">All</option>';
+                data.forEach(samaj => {
+                    select.innerHTML += `<option value="${samaj.name}">${samaj.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading Samaj filter:', error);
+            }
+        }
+        
+        function applyFilters() {
+            const filters = {
+                samaj_name: document.getElementById('samajFilter').value,
+                name: document.getElementById('nameSearch').value
+            };
+            
+            const queryParams = new URLSearchParams();
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value) queryParams.append(key, value);
+            });
+            
+            membersTable.ajax.url(`/api/v1/admin/members?${queryParams.toString()}`).load();
+        }
+        
+        async function viewDetails(id) {
+            try {
+                const response = await fetch(`/api/v1/admin/members/${id}`, { headers });
+                const member = await response.json();
+                
+                const detailsHtml = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Name:</strong> ${member.name}</p>
+                            <p><strong>Samaj:</strong> ${member.samaj}</p>
+                            <p><strong>Family:</strong> ${member.family}</p>
+                            <p><strong>Role:</strong> ${member.role}</p>
+                            <p><strong>Age:</strong> ${member.age}</p>
+                            <p><strong>Blood Group:</strong> ${member.blood_group}</p>
+                            <p><strong>Mobile:</strong> ${member.mobile}</p>
+                            <p><strong>Email:</strong> ${member.email}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Education:</strong> ${member.education}</p>
+                            <p><strong>Occupation:</strong> ${member.occupation}</p>
+                            <p><strong>Current City:</strong> ${member.city}</p>
+                            <p><strong>Native Place:</strong> ${member.native_place}</p>
+                            <p><strong>Languages:</strong> ${member.languages_known}</p>
+                            <p><strong>Skills:</strong> ${member.skills}</p>
+                            <p><strong>Hobbies:</strong> ${member.hobbies}</p>
+                        </div>
+                    </div>
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('memberModal'));
+                document.getElementById('memberDetails').innerHTML = detailsHtml;
+                modal.show();
+            } catch (error) {
+                console.error('Error loading member details:', error);
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/api/v1/auth/login';
+        }
+        
+        loadSamajFilter();
+    </script>
+</body>
+</html>

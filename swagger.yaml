@@ -1,0 +1,217 @@
+openapi: 3.0.0
+info:
+  title: WhatsApp Bot API
+  description: API for Family & Samaj Data Collection WhatsApp Bot
+  version: 1.0.0
+  contact:
+    name: SANJAY KR
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Member:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        gender:
+          type: string
+        age:
+          type: integer
+        blood_group:
+          type: string
+        mobile_1:
+          type: string
+        mobile_2:
+          type: string
+        education:
+          type: string
+        occupation:
+          type: string
+        marital_status:
+          type: string
+        address:
+          type: string
+        email:
+          type: string
+        birth_date:
+          type: string
+        anniversary_date:
+          type: string
+        native_place:
+          type: string
+        current_city:
+          type: string
+        languages_known:
+          type: string
+        skills:
+          type: string
+        hobbies:
+          type: string
+        emergency_contact:
+          type: string
+        relationship_status:
+          type: string
+        family_role:
+          type: string
+        medical_conditions:
+          type: string
+        dietary_preferences:
+          type: string
+        social_media_handles:
+          type: string
+        profession_category:
+          type: string
+        volunteer_interests:
+          type: string
+
+    Samaj:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+paths:
+  /webhook:
+    post:
+      summary: WhatsApp webhook endpoint
+      description: Handles incoming WhatsApp messages
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                From:
+                  type: string
+                  description: WhatsApp number of sender
+                Body:
+                  type: string
+                  description: Message content
+      responses:
+        '200':
+          description: Message processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /auth/token:
+    post:
+      summary: Get authentication token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+
+  /admin/members:
+    get:
+      summary: List all members
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: samaj_name
+          schema:
+            type: string
+          description: Filter members by samaj name
+      responses:
+        '200':
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+
+  /admin/samaj:
+    get:
+      summary: List all samaj
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of samaj
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Samaj'
+
+  /admin/members/{member_id}:
+    get:
+      summary: Get member details
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: member_id
+          required: true
+          schema:
+            type: integer
+          description: ID of the member
+      responses:
+        '200':
+          description: Member details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+
+  /admin/export/csv:
+    get:
+      summary: Export members data as CSV
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: samaj_name
+          schema:
+            type: string
+          description: Filter export by samaj name
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary

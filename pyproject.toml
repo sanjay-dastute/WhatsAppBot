@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "whatsapp-bot"
+version = "0.1.0"
+description = "WhatsApp Bot for Family & Samaj Data Collection"
+authors = ["SANJAY KR"]
+readme = "README.md"
+packages = [
+    {"include" = "app"}
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^3.0.0"
+flask-cors = "^4.0.0"
+flask-sqlalchemy = "^3.1.1"
+twilio = "^9.4.4"
+sqlalchemy = "^2.0.37"
+psycopg2-binary = "^2.9.10"
+python-dotenv = "^1.0.1"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

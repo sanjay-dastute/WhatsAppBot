@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family & Samaj Data Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1>Family & Samaj Data Management</h1>
+            </div>
+            <div class="col-auto">
+                <button id="loginBtn" class="btn btn-primary">Login</button>
+                <button id="exportBtn" class="btn btn-success ms-2" style="display: none;">Export CSV</button>
+                <button id="logoutBtn" class="btn btn-danger ms-2" style="display: none;">Logout</button>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Filter by Samaj</h5>
+                        <select id="samajSelect" class="form-select">
+                            <option value="">All Samaj</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Analytics Overview</h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2 text-muted">Total Members</h6>
+                                        <p id="totalMembers" class="h3">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2 text-muted">Gender Distribution</h6>
+                                        <div id="genderDistribution"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2 text-muted">Age Groups</h6>
+                                        <div id="ageGroups"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2 text-muted">Professions</h6>
+                                        <div id="professionCategories"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Gender</th>
+                                <th>Age</th>
+                                <th>Blood Group</th>
+                                <th>Mobile</th>
+                                <th>Education</th>
+                                <th>Occupation</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="membersList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Admin Login</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let accessToken = localStorage.getItem('accessToken') || '';
+        let loginModal;
+        const loginBtn = document.getElementById('loginBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            
+            logoutBtn.addEventListener('click', () => {
+                accessToken = '';
+                localStorage.removeItem('accessToken');
+                loginBtn.style.display = 'inline-block';
+                exportBtn.style.display = 'none';
+                logoutBtn.style.display = 'none';
+                document.getElementById('membersList').innerHTML = '';
+                document.getElementById('samajSelect').innerHTML = '<option value="">All Samaj</option>';
+            });
+        });
+
+        async function login(username, password) {
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            try {
+                const response = await fetch('/api/v1/auth/token', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Login failed');
+                
+                const data = await response.json();
+                accessToken = data.access_token;
+                localStorage.setItem('accessToken', accessToken);
+                loginBtn.style.display = 'none';
+                exportBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'inline-block';
+                loginModal.hide();
+                loadSamajList();
+                loadMembers();
+                loadAnalytics();
+            } catch (error) {
+                alert('Login failed. Please try again.');
+            }
+        }
+
+        async function loadSamajList() {
+            try {
+                const response = await fetch('/api/v1/admin/samaj', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!response.ok) throw new Error('Failed to load Samaj list');
+                
+                const samajList = await response.json();
+                const select = document.getElementById('samajSelect');
+                select.innerHTML = '<option value="">All Samaj</option>';
+                samajList.forEach(samaj => {
+                    const option = document.createElement('option');
+                    option.value = samaj.name;
+                    option.textContent = samaj.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading Samaj list:', error);
+            }
+        }
+
+        async function loadAnalytics() {
+            try {
+                const response = await fetch('/api/v1/admin/analytics', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!response.ok) throw new Error('Failed to load analytics');
+                
+                const data = await response.json();
+                
+                // Update total members
+                document.getElementById('totalMembers').textContent = data.total_members;
+                
+                // Update gender distribution
+                const genderHtml = Object.entries(data.gender_distribution)
+                    .map(([gender, count]) => `<div>${gender}: ${count}</div>`)
+                    .join('');
+                document.getElementById('genderDistribution').innerHTML = genderHtml;
+                
+                // Update age groups
+                const ageHtml = Object.entries(data.age_groups)
+                    .map(([group, count]) => `<div>${group}: ${count}</div>`)
+                    .join('');
+                document.getElementById('ageGroups').innerHTML = ageHtml;
+                
+                // Update profession categories
+                const professionHtml = Object.entries(data.profession_categories)
+                    .map(([category, count]) => `<div>${category}: ${count}</div>`)
+                    .join('');
+                document.getElementById('professionCategories').innerHTML = professionHtml;
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        async function loadMembers(samajName = '') {
+            try {
+                const url = samajName 
+                    ? `/api/v1/admin/members?samaj_name=${encodeURIComponent(samajName)}`
+                    : '/api/v1/admin/members';
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!response.ok) throw new Error('Failed to load members');
+                
+                const members = await response.json();
+                const tbody = document.getElementById('membersList');
+                tbody.innerHTML = '';
+                
+                members.forEach(member => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${member.name}</td>
+                        <td>${member.gender}</td>
+                        <td>${member.age}</td>
+                        <td>${member.blood_group}</td>
+                        <td>${member.mobile_1}</td>
+                        <td>${member.education || '-'}</td>
+                        <td>${member.occupation || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewMember(${member.id})">View</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading members:', error);
+            }
+        }
+
+        async function viewMember(id) {
+            try {
+                const response = await fetch(`/api/v1/admin/members/${id}`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!response.ok) throw new Error('Failed to load member details');
+                
+                const member = await response.json();
+                const memberDetails = Object.entries(member)
+                    .map(([key, value]) => `${key}: ${value || '-'}`)
+                    .join('\n');
+                alert(memberDetails);
+            } catch (error) {
+                console.error('Error viewing member:', error);
+            }
+        }
+
+        async function exportCSV() {
+            try {
+                const samajName = document.getElementById('samajSelect').value;
+                const url = `/api/v1/admin/export/csv${samajName ? `?samaj_name=${encodeURIComponent(samajName)}` : ''}`;
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!response.ok) throw new Error('Export failed');
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `members_${samajName || 'all'}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                console.error('Error exporting CSV:', error);
+                alert('Failed to export CSV');
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            login(username, password);
+        });
+
+        loginBtn.addEventListener('click', () => {
+            if (accessToken) {
+                accessToken = '';
+                loginBtn.textContent = 'Login';
+                exportBtn.style.display = 'none';
+                document.getElementById('membersList').innerHTML = '';
+                document.getElementById('samajSelect').innerHTML = '<option value="">All Samaj</option>';
+            } else {
+                loginModal.show();
+            }
+        });
+
+        exportBtn.addEventListener('click', exportCSV);
+
+        document.getElementById('samajSelect').addEventListener('change', (e) => {
+            if (accessToken) loadMembers(e.target.value);
+        });
+    </script>
+</body>
+</html>

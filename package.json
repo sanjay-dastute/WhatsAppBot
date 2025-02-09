@@ -1,0 +1,12 @@
+{
+  "name": "whatsapp-bot-flask",
+  "version": "1.0.0",
+  "author": "SANJAY KR",
+  "description": "WhatsApp Bot for Family & Samaj Data Collection using Flask",
+  "private": true,
+  "scripts": {
+    "start": "echo 'Start script placeholder for container or future frontend build'",
+    "test": "echo 'Test script placeholder for container or future frontend tests'",
+    "lint": "echo 'Lint script placeholder for future frontend linting'"
+  }
+}
